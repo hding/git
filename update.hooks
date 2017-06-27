@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# An example hook script to block unannotated tags from entering.
+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
+#
+# To enable this hook, rename this file to "update".
+#
+# Config
+# ------
+# hooks.allowunannotated
+#   This boolean sets whether unannotated tags will be allowed into the
+#   repository.  By default they won't be.
+# hooks.allowdeletetag
+#   This boolean sets whether deleting tags will be allowed in the
+#   repository.  By default they won't be.
+# hooks.allowmodifytag
+#   This boolean sets whether a tag may be modified after creation. By default
+#   it won't be.
+# hooks.allowdeletebranch
+#   This boolean sets whether deleting branches will be allowed in the
+#   repository.  By default they won't be.
+# hooks.denycreatebranch
+#   This boolean sets whether remotely creating branches will be denied
+#   in the repository.  By default this is allowed.
+#
+
+# --- Command line
+refname="$1"
+oldrev="$2"
+newrev="$3"
+
+commit_regex='^(#[0-9]{5},?){1,}[:][[:print:]]{10,}'
+error_msg="Aborting commit. Your commit message MUST be in format #12345[,#23232]:Commit message (min 10 chars)"
+
+missed_revs=`git rev-list "$oldrev".."$newrev"`
+
+while read -r line; do
+    message=`git cat-file commit "$line" | sed '1,/^$/d'`
+    if ! (echo "$message" | grep -iqE "$commit_regex" ); then
+      echo "$error_msg:$message" 
+      exit 1
+    fi
+done <<< "$missed_revs"
+
+exit 0
